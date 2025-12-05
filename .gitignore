@@ -1,0 +1,95 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+ENV/
+env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Data files (exclude generated/test data)
+raw_data/
+*.csv
+*.parquet
+*.json.gz
+
+# Documentation (exclude from repo)
+docs/
+*.md
+!README.md
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+crash.log
+
+# AWS
+.aws/
+*.pem
+*.ppk
+
+# Databricks
+.databrickscfg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Lambda deployment packages
+*.zip
+lambda/*/deployment.zip
+lambda/*/*.pyc
+lambda/*/boto3/
+lambda/*/botocore/
+
+# Secrets
+secrets/
+*.secret
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/
+
+# GitHub workflows (optional - uncomment to exclude)
+# .github/

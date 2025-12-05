@@ -1,0 +1,39 @@
+name: Deploy Streamlit Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-dashboard:
+    name: Deploy Dashboard to Streamlit Cloud
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd dashboard
+          pip install -r requirements.txt
+      
+      - name: Test dashboard startup
+        run: |
+          cd dashboard
+          timeout 30s streamlit run app.py --server.headless true || code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+      
+      - name: Deploy to Streamlit Cloud
+        env:
+          STREAMLIT_TOKEN: ${{ secrets.STREAMLIT_TOKEN }}
+        run: |
+          echo "Dashboard deployment configured via Streamlit Cloud UI"
+          echo "Auto-deploy enabled for main branch"

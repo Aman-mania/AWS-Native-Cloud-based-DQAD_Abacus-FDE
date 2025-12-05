@@ -1,0 +1,280 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DQAD QUICK REFERENCE CARD                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                          🚀 RUNNING THE SCRIPTS                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRODUCTION FLOW (Full AWS Demo)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+cd scripts
+.\production_flow.ps1
+
+What it does:
+  ✓ Uploads CSV to S3 → triggers Lambda → runs Glue job
+  ✓ Monitors job execution (115 seconds)
+  ✓ Verifies Gold/Silver/Quarantine layers
+  ✓ Checks CloudWatch metrics (DQ score, anomaly count)
+  ✓ Tests API Gateway self-healing endpoint
+
+Requirements:
+  • AWS credentials configured
+  • Infrastructure deployed (terraform apply)
+  • Test file: data/test_claims.csv
+
+Duration: ~3-5 minutes
+Cost: $0.00 (free tier)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ MOCK FLOW (Local Dashboard, No AWS)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+cd scripts
+.\mock_flow.ps1
+
+What it does:
+  ✓ Sets DQAD_MOCK_MODE=true
+  ✓ Installs Streamlit dependencies
+  ✓ Launches dashboard with fake data
+  ✓ Opens browser at http://localhost:8501
+
+Requirements:
+  • Python 3.11+
+  • pip installed
+  • NO AWS credentials needed
+
+Duration: ~30 seconds
+Cost: $0.00 (completely free)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ END-TO-END TESTS (Validate All Components)                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+cd scripts
+.\test_end_to_end.ps1
+
+What it tests:
+  ✓ AWS credentials
+  ✓ S3 buckets (3)
+  ✓ Lambda functions (3)
+  ✓ Glue job
+  ✓ CloudWatch alarms (3)
+  ✓ Data upload/processing
+  ✓ CloudWatch metrics
+  ✓ API Gateway
+  ✓ Cost collector
+  ✓ Dashboard launch
+
+Requirements:
+  • AWS credentials configured
+  • Infrastructure deployed
+
+Duration: ~2-3 minutes
+Cost: $0.00 (free tier)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       📊 COMPONENT ARCHITECTURE                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+PRODUCTION FLOW:
+┌─────────┐     ┌────────┐     ┌────────────┐     ┌──────────────┐
+│   CSV   │ ──> │   S3   │ ──> │   Lambda   │ ──> │  Glue Job    │
+│  Upload │     │  Event │     │  Trigger   │     │  (Spark ETL) │
+└─────────┘     └────────┘     └────────────┘     └──────────────┘
+                                                           │
+                    ┌──────────────────────────────────────┤
+                    ▼                      ▼               ▼
+              ┌──────────┐          ┌──────────┐    ┌──────────────┐
+              │   Gold   │          │  Silver  │    │  Quarantine  │
+              │ (Clean)  │          │ (DQ Fail)│    │  (Outliers)  │
+              └──────────┘          └──────────┘    └──────────────┘
+                    │
+                    ▼
+              ┌──────────────┐     ┌──────────┐     ┌─────────┐
+              │  CloudWatch  │ ──> │  Alarms  │ ──> │   SNS   │
+              │   Metrics    │     │          │     │  Email  │
+              └──────────────┘     └──────────┘     └─────────┘
+
+MOCK FLOW:
+┌─────────────┐
+│  Dashboard  │  (generates all data internally)
+│  (Streamlit)│  • Fake metrics
+│             │  • Random anomalies
+└─────────────┘  • Sample logs
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                        🔧 COMMON COMMANDS                                 ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Infrastructure                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Deploy:      cd infra/terraform; terraform apply
+Destroy:     cd infra/terraform; terraform destroy
+Status:      cd infra/terraform; terraform show
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Data Operations                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Generate:    cd data; python generate_payer_data.py
+Upload:      aws s3 cp test.csv s3://dqad-raw-dev/claims/
+List Gold:   aws s3 ls s3://dqad-processed-dev/gold/ --recursive
+Download:    aws s3 cp s3://dqad-processed-dev/gold/... ./output.parquet
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Monitoring                                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Glue Jobs:   aws glue get-job-runs --job-name dqad-etl-job-dev
+Glue Logs:   aws logs tail /aws-glue/jobs/output --since 10m
+Lambda Logs: aws logs tail /aws/lambda/dqad-orchestrator --since 10m
+Metrics:     aws cloudwatch get-metric-statistics --namespace DQAD/DataQuality ...
+Alarms:      aws cloudwatch describe-alarms --alarm-name-prefix dqad-
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Dashboard                                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Mock Mode:   cd dashboard; $env:DQAD_MOCK_MODE="true"; streamlit run app.py
+Real Mode:   cd dashboard; $env:DQAD_MOCK_MODE="false"; streamlit run app.py
+Stop:        Ctrl+C in terminal
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Troubleshooting                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Check Costs: aws ce get-cost-and-usage --time-period Start=2025-12-01,End=2025-12-05 --granularity DAILY --metrics BlendedCost
+Test Lambda: aws lambda invoke --function-name dqad-cost-collector response.json
+View State:  cd infra/terraform; terraform state list
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                         📁 PROJECT STRUCTURE                              ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Abacus FDE/
+├── scripts/
+│   ├── production_flow.ps1    ← Full AWS demo
+│   ├── mock_flow.ps1           ← Local dashboard
+│   ├── test_end_to_end.ps1    ← Comprehensive tests
+│   └── README.md               ← This guide
+├── infra/terraform/
+│   ├── *.tf                    ← Infrastructure as Code
+│   └── terraform.tfstate       ← Current state (76 resources)
+├── glue/
+│   └── dqad_etl_job.py        ← Spark ETL script (50+ DQ rules)
+├── lambda/
+│   ├── orchestrator/           ← Self-healing logic
+│   ├── cost_collector/         ← Cost monitoring
+│   └── glue_trigger/           ← S3 → Glue automation
+├── dashboard/
+│   └── app.py                  ← Streamlit UI
+└── data/
+    ├── generate_payer_data.py  ← Test data generator
+    └── test_claims.csv         ← Sample data
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                         💰 COST BREAKDOWN                                 ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Service              Free Tier Limit              Current Usage      Cost
+─────────────────────────────────────────────────────────────────────────────
+S3 Storage           5 GB                         < 1 MB             $0.00
+S3 Requests          20k GET, 2k PUT              < 100              $0.00
+Lambda Invocations   1M requests                  ~10/day            $0.00
+Lambda Duration      400k GB-seconds              ~5 GB-sec/day      $0.00
+Glue                 1M DPU-seconds               ~230 DPU-sec       $0.00
+CloudWatch Alarms    10 alarms                    3 alarms           $0.00
+CloudWatch Logs      5 GB ingestion               < 100 MB           $0.00
+CloudWatch Metrics   Free (custom)                ~10 metrics        $0.00
+SNS                  1k emails                    ~5/day             $0.00
+API Gateway          1M requests                  ~10/day            $0.00
+EventBridge          Free                         5 rules            $0.00
+─────────────────────────────────────────────────────────────────────────────
+TOTAL MONTHLY COST:                                                  $0.00
+
+Free Tier Valid Until: December 4, 2026 (12 months from account creation)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                      ⚡ QUICK START (FIRST TIME)                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Step 1: Setup AWS Credentials
+    aws configure
+    # Enter access key, secret key, region=us-east-1
+
+Step 2: Deploy Infrastructure
+    cd infra/terraform
+    terraform init
+    terraform apply
+    # Enter email when prompted
+
+Step 3: Confirm SNS Subscription
+    # Check email and click confirmation link
+
+Step 4: Test Locally (No Cost)
+    cd ../../scripts
+    .\mock_flow.ps1
+    # Dashboard opens at localhost:8501
+
+Step 5: Test Production (Free Tier)
+    .\production_flow.ps1
+    # Runs complete AWS workflow
+
+Step 6: Run All Tests
+    .\test_end_to_end.ps1
+    # Validates all components
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                        🎯 DEMONSTRATION TIPS                              ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+For Quick Demo (5 minutes):
+  1. Open mock dashboard: .\mock_flow.ps1
+  2. Show UI with fake data
+  3. Explain it connects to real AWS when credentials present
+
+For Full Demo (10 minutes):
+  1. Show infrastructure: cd infra/terraform; terraform show
+  2. Run production flow: cd ../scripts; .\production_flow.ps1
+  3. Watch real-time processing
+  4. Show CloudWatch metrics in AWS console
+  5. Open dashboard in real mode
+  6. Trigger self-healing via API Gateway
+
+For Technical Deep-Dive (20 minutes):
+  1. Run end-to-end tests: .\test_end_to_end.ps1
+  2. Explain each component as tests run
+  3. Show Glue job code: glue/dqad_etl_job.py
+  4. Show Lambda orchestrator: lambda/orchestrator/app.py
+  5. Demonstrate dashboard switching between mock/real modes
+  6. Show Terraform state: infra/terraform/terraform.tfstate
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                         📞 SUPPORT & RESOURCES                            ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Documentation:
+  • Architecture:     docs/ARCHITECTURE.md
+  • Testing Guide:    docs/TESTING_GUIDE.md
+  • Troubleshooting:  docs/TROUBLESHOOTING.md
+  • API Reference:    docs/API_REFERENCE.md
+
+AWS Console Links:
+  • S3 Buckets:       https://s3.console.aws.amazon.com/s3/buckets?region=us-east-1
+  • Glue Jobs:        https://console.aws.amazon.com/glue/home?region=us-east-1#etl:tab=jobs
+  • Lambda:           https://console.aws.amazon.com/lambda/home?region=us-east-1#/functions
+  • CloudWatch:       https://console.aws.amazon.com/cloudwatch/home?region=us-east-1
+  • Cost Explorer:    https://console.aws.amazon.com/cost-management/home
+
+Key Metrics Dashboard:
+  API Gateway URL:    https://3x8a9rr1ah.execute-api.us-east-1.amazonaws.com/dev/trigger
+  SNS Topic:          arn:aws:sns:us-east-1:050752651530:dqad-alerts-dev
+
+└─────────────────────────────────────────────────────────────────────────────┘
+  Version: 1.0  |  Updated: 2025-12-05  |  AWS Account: 050752651530
+└─────────────────────────────────────────────────────────────────────────────┘

@@ -1,0 +1,19 @@
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "dev"
+
+# Project Configuration
+project_name = "dqad"
+
+# Alerts (REQUIRED)
+alert_email = "your-email@example.com"
+
+# Databricks Configuration (OPTIONAL - only for automated restart feature)
+# Leave empty if not using Databricks API integration
+databricks_host   = ""
+databricks_token  = ""
+databricks_job_id = ""
+
+# Thresholds (Free-tier optimized defaults)
+cost_threshold_usd = 2.0   # Set low for free-tier safety
+anomaly_threshold  = 100
