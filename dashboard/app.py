@@ -28,13 +28,22 @@ MOCK_MODE = False
 @st.cache_resource
 def get_aws_clients():
     """Initialize and cache AWS clients"""
-    # Always try to connect to real AWS
-    aws_region = os.getenv('AWS_DEFAULT_REGION', 'us-east-1')
+    # Try Streamlit secrets first, then environment variables
+    aws_region = st.secrets.get('AWS_DEFAULT_REGION', os.getenv('AWS_DEFAULT_REGION', 'us-east-1'))
     
     try:
-        # Create session to use default credential chain
-        import boto3.session
-        session = boto3.session.Session(region_name=aws_region)
+        # Check if running on Streamlit Cloud with secrets
+        if 'AWS_ACCESS_KEY_ID' in st.secrets:
+            import boto3.session
+            session = boto3.session.Session(
+                aws_access_key_id=st.secrets['AWS_ACCESS_KEY_ID'],
+                aws_secret_access_key=st.secrets['AWS_SECRET_ACCESS_KEY'],
+                region_name=aws_region
+            )
+        else:
+            # Use default credential chain (local AWS CLI credentials)
+            import boto3.session
+            session = boto3.session.Session(region_name=aws_region)
         
         clients = {
             's3': session.client('s3'),

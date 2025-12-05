@@ -89,7 +89,8 @@ secrets/
 
 # Streamlit
 .streamlit/secrets.toml
-.streamlit/
+!.streamlit/config.toml
+!.streamlit/secrets.toml.example
 
 # GitHub workflows (optional - uncomment to exclude)
 # .github/

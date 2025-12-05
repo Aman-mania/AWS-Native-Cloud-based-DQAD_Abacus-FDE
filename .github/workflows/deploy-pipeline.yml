@@ -1,0 +1,128 @@
+name: DQAD Pipeline Automation
+
+on:
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      anomaly_rate:
+        description: 'Anomaly rate for test data (0.0-1.0)'
+        required: false
+        default: '0.35'
+      num_claims:
+        description: 'Number of claims to generate'
+        required: false
+        default: '3000'
+  
+  # Scheduled runs (optional - uncomment to enable)
+  # schedule:
+  #   - cron: '0 9 * * *'  # Daily at 9 AM UTC
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r data/requirements.txt
+        pip install boto3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+    
+    - name: Generate synthetic claims data
+      run: |
+        cd data
+        python generate_payer_data.py
+        echo "✓ Generated claims data"
+    
+    - name: Upload to S3
+      run: |
+        aws s3 cp raw_data/ s3://dqad-raw-dev/claims/ --recursive --exclude "*" --include "*.csv"
+        echo "✓ Uploaded claims to S3"
+    
+    - name: Trigger Glue ETL job
+      id: glue-job
+      run: |
+        LATEST_FILE=$(ls -t raw_data/*.csv | head -1 | xargs -n 1 basename)
+        RUN_ID=$(aws glue start-job-run \
+          --job-name dqad-etl-job-dev \
+          --arguments "{\"--S3_INPUT_KEY\":\"claims/$LATEST_FILE\"}" \
+          --query 'JobRunId' \
+          --output text)
+        echo "job_run_id=$RUN_ID" >> $GITHUB_OUTPUT
+        echo "✓ Glue job started: $RUN_ID"
+    
+    - name: Monitor Glue job execution
+      run: |
+        RUN_ID=${{ steps.glue-job.outputs.job_run_id }}
+        echo "Monitoring job run: $RUN_ID"
+        
+        for i in {1..60}; do
+          STATUS=$(aws glue get-job-run \
+            --job-name dqad-etl-job-dev \
+            --run-id "$RUN_ID" \
+            --query 'JobRun.JobRunState' \
+            --output text)
+          
+          echo "Attempt $i/60: Status = $STATUS"
+          
+          if [ "$STATUS" == "SUCCEEDED" ]; then
+            echo "✓ Glue job completed successfully"
+            exit 0
+          elif [ "$STATUS" == "FAILED" ] || [ "$STATUS" == "STOPPED" ]; then
+            echo "✗ Glue job failed with status: $STATUS"
+            exit 1
+          fi
+          
+          sleep 10
+        done
+        
+        echo "✗ Glue job timeout after 10 minutes"
+        exit 1
+    
+    - name: Verify outputs
+      run: |
+        echo "Gold tier (clean data):"
+        aws s3 ls s3://dqad-processed-dev/gold/ --recursive --human-readable | tail -5
+        
+        echo "Silver tier (DQ failures):"
+        aws s3 ls s3://dqad-processed-dev/silver/ --recursive --human-readable | tail -5
+        
+        echo "Quarantine tier (outliers):"
+        aws s3 ls s3://dqad-processed-dev/quarantine/ --recursive --human-readable | tail -5
+    
+    - name: Check CloudWatch metrics
+      run: |
+        aws cloudwatch get-metric-statistics \
+          --namespace DQAD/DataQuality \
+          --metric-name DataQualityScore \
+          --dimensions Name=Environment,Value=dev \
+          --start-time "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%S)" \
+          --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
+          --period 3600 \
+          --statistics Average \
+          --query 'Datapoints[*].[Timestamp,Average]' \
+          --output table
+    
+    - name: Upload artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: pipeline-logs
+        path: |
+          raw_data/*.csv
+          *.log
+        retention-days: 7
