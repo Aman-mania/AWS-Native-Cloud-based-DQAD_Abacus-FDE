@@ -16,25 +16,8 @@ DQAD is a serverless AWS-native platform that validates healthcare payer claims 
 - **Cost-Optimized**: $0.60/month running costs (250x cheaper than industry standard)
 
 ### Architecture
+<img width="2816" height="1536" alt="Gemini_Generated_Image_ujdo6vujdo6vujdo" src="https://github.com/user-attachments/assets/3ede2478-0379-4f55-a798-a7d59de30a4b" />
 
-```
-Raw CSV Claims (S3)
-        ↓
-AWS Glue ETL (PySpark)
-   ├─→ 50+ DQ Rules
-   └─→ Z-Score Anomaly Detection
-        ↓
-    ┌───┴────┬─────────────┐
-    ↓        ↓             ↓
-  Gold    Silver      Quarantine
-(Clean)  (DQ Fail)   (Outliers)
-    ↓
-CloudWatch Metrics → Alarms → Lambda Orchestrator
-                                    ↓
-                          Self-Healing Actions
-```
-
----
 
 ## Prerequisites
 
@@ -344,38 +327,6 @@ terraform apply
 
 **Scaling:** 1M claims/day ≈ $15/month (10 G.2X workers)
 
----
-
-## Project Structure
-
-```
-Abacus-FDE/
-├── data/                    # Data generation
-│   ├── generate_payer_data.py
-│   └── requirements.txt
-├── glue/                    # ETL job
-│   └── dqad_etl_job.py
-├── lambda/                  # Serverless functions
-│   ├── orchestrator/        # Self-healing logic
-│   ├── cost_collector/      # Cost tracking
-│   └── glue_trigger/        # Job trigger
-├── infra/terraform/         # Infrastructure as Code
-│   ├── main.tf
-│   ├── glue.tf
-│   ├── cloudwatch_alarms.tf
-│   └── variables.tf
-├── dashboard/               # Streamlit monitoring UI
-│   ├── app.py
-│   └── requirements.txt
-├── scripts/                 # Automation scripts
-│   ├── full_demo.ps1        # End-to-end demo (Windows)
-│   ├── deploy.sh            # Deployment script
-│   └── package_lambda.ps1   # Lambda packaging
-└── README.md
-```
-
----
-
 ## Technical Highlights
 
 ### Data Quality Rules (50+)
@@ -469,7 +420,6 @@ terraform destroy
 ## Support
 
 For issues or questions:
-- Open a GitHub Issue
-- Email: your-email@example.com
-
-**Built with ❤️ for healthcare data quality**
+- Open a GitHub Issue (Screenshot)
+- Email: amanbiswakarma.ak@gmail.com
+- College_mail: 112215015@cse.iiitp.ac.in
