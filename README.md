@@ -2,6 +2,13 @@
 
 **Automated healthcare claims validation with real-time monitoring and self-healing capabilities**
 
+For more details and related files (Visit my Drive which contains Demo videos too)
+[Drive Folder](https://drive.google.com/drive/folders/18-_51xxYJCgDDic4vYoYB4GJHHUYFfVL?usp=drive_link)
+
+Demo Videos:
+- Entire Pipeline on AWS [Watch here](https://drive.google.com/file/d/1qlK4ERVNjSWMxP020MyusqZX1pYENP3V/view?usp=drive_link)
+- Dashboard demo [Watch here](https://drive.google.com/file/d/1skGGKLyEPL8f7TSVrD9hyOTkJL31Ep1L/view?usp=drive_link)
+
 ## Overview
 
 DQAD is a serverless AWS-native platform that validates healthcare payer claims through 50+ data quality rules and statistical anomaly detection. It processes 100K+ claims in under 60 seconds while maintaining operational costs under $1/month.
